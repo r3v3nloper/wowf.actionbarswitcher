@@ -1,0 +1,16 @@
+## Interface: 16001, 16000
+## Title: ActionBar Switcher
+## Notes: Switch Blizzard action bars 1 AND 2 (and optionally 3-8) between pages with one key - works in combat, keeps the default UI.
+## Notes-deDE: Schaltet Blizzards Aktionsleisten 1 UND 2 (optional 3-8) per Taste zwischen Seiten um - auch im Kampf, ohne die Standard-UI zu ersetzen.
+## Author: r3v3nloper
+## Version: 1.0.0
+## SavedVariablesPerCharacter: ActionBarSwitcherCharDB
+## IconTexture: Interface\Icons\INV_Misc_Book_09
+## AddonCompartmentFunc: ActionBarSwitcher_OnAddonCompartmentClick
+## AddonCompartmentFuncOnEnter: ActionBarSwitcher_OnAddonCompartmentEnter
+## AddonCompartmentFuncOnLeave: ActionBarSwitcher_OnAddonCompartmentLeave
+
+Locales.lua
+Core.lua
+KeyBinds.lua
+Options.lua

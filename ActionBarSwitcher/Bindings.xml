@@ -1,0 +1,13 @@
+<Bindings>
+	<!--
+		All bindings "click" the secure switch button. The pseudo mouse button
+		name (next / prev / setN) tells the secure snippet what to do, so every
+		binding works in combat. Display names are defined in Locales.lua.
+	-->
+	<Binding name="CLICK ActionBarSwitcherButton:next" header="ACTIONBARSWITCHER" category="ADDONS"/>
+	<Binding name="CLICK ActionBarSwitcherButton:prev" category="ADDONS"/>
+	<Binding name="CLICK ActionBarSwitcherButton:set1" category="ADDONS"/>
+	<Binding name="CLICK ActionBarSwitcherButton:set2" category="ADDONS"/>
+	<Binding name="CLICK ActionBarSwitcherButton:set3" category="ADDONS"/>
+	<Binding name="CLICK ActionBarSwitcherButton:set4" category="ADDONS"/>
+</Bindings>
