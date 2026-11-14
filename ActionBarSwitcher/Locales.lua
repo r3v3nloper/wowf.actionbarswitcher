@@ -48,6 +48,7 @@ local L = {
 		"|cffffd100/abs check|r - check the configuration for conflicts",
 		"|cffffd100/abs status|r - show the current set",
 		"|cffffd100/abs reset|r - reset all bars to their default pages",
+		"|cffffd100/abs debug|r - diagnostic info",
 		"Also possible: Esc > Options > Keybindings > AddOns > ActionBar Switcher",
 	},
 
@@ -67,7 +68,7 @@ local L = {
 	OPT_ANNOUNCE = "Chat message on switch",
 	OPT_ANNOUNCE_TT = "Prints the name of the new set to the chat window.",
 	OPT_SET_INFO = "Choose which page each bar shows while this set is active. Rename the set with /abs name %d <name>.",
-	OPT_BAR1_TT = "Action Bar 1 uses Blizzard's own paging (pages 1-6), exactly like Shift + mouse wheel. 'Don't change' leaves it alone.",
+	OPT_BAR1_TT = "Page 1 = your normal Action Bar 1. Stealth, druid forms, skyriding and vehicles still replace Action Bar 1 automatically in every set.",
 	OPT_BARN_TT = "'Default' shows the bar's own page. Free pages for most players: 3, 4, 5 (if Action Bars 4, 5, 3 are not used) and 13, 14, 15 (if Action Bars 6, 7, 8 are not used). Drag spells onto the bar while the set is active to fill that page.",
 	OPT_INACTIVE = "(inactive - number of sets is %d)",
 	OPT_KEYBINDS = "Key bindings",
@@ -128,6 +129,7 @@ if GetLocale() == "deDE" then
 			"|cffffd100/abs check|r - Konfiguration auf Konflikte prüfen",
 			"|cffffd100/abs status|r - aktives Set anzeigen",
 			"|cffffd100/abs reset|r - alle Leisten auf Standardseiten zurücksetzen",
+			"|cffffd100/abs debug|r - Diagnose-Infos",
 			"Alternativ: Esc > Optionen > Tastaturbelegung > AddOns > ActionBar Switcher",
 		},
 
@@ -145,7 +147,7 @@ if GetLocale() == "deDE" then
 		OPT_ANNOUNCE = "Chat-Meldung beim Wechsel",
 		OPT_ANNOUNCE_TT = "Schreibt den Namen des neuen Sets ins Chatfenster.",
 		OPT_SET_INFO = "Lege fest, welche Seite jede Leiste zeigt, solange dieses Set aktiv ist. Umbenennen mit /abs name %d <Name>.",
-		OPT_BAR1_TT = "Aktionsleiste 1 nutzt Blizzards eigenes Blättern (Seiten 1-6), genau wie Shift + Mausrad. 'Nicht ändern' lässt sie in Ruhe.",
+		OPT_BAR1_TT = "Seite 1 = deine normale Aktionsleiste 1. Verstohlenheit, Druidenformen, Himmelsreiten und Fahrzeuge ersetzen Aktionsleiste 1 in jedem Set weiterhin automatisch.",
 		OPT_BARN_TT = "'Standard' zeigt die eigene Seite der Leiste. Für die meisten Spieler frei: Seite 3, 4, 5 (wenn Aktionsleiste 4, 5, 3 nicht genutzt werden) und 13, 14, 15 (wenn Aktionsleiste 6, 7, 8 nicht genutzt werden). Bei aktivem Set einfach Zauber auf die Leiste ziehen, um diese Seite zu befüllen.",
 		OPT_INACTIVE = "(inaktiv - Anzahl Sets ist %d)",
 		OPT_KEYBINDS = "Tastenbelegung",

@@ -28,7 +28,6 @@ end
 
 local function Bar1Options()
 	local container = Settings.CreateControlTextContainer()
-	container:Add(0, L.PAGE_UNCHANGED)
 	for page = 1, ns.BAR1_MAX_PAGE do
 		container:Add(page, PageLabel(page))
 	end

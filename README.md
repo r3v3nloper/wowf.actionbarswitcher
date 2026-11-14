@@ -52,7 +52,8 @@ sie frei. Wenn du Leiste 6 doch aktivierst, nimm stattdessen Seite 14/15 (Leiste
 
 - **Allgemein:** Anzahl Sets (1–4), Umschalt-Button anzeigen/sperren, Chat-Meldung beim Wechsel.
 - **Set 1 … Set 4:** Seite für jede Aktionsleiste.
-  - Leiste 1: „Nicht ändern“ oder Seite 1–6 (Blizzards eigenes Blättern, wie Shift + Mausrad).
+  - Leiste 1: Seite 1–6 (1 = deine normale Leiste 1). Verstohlenheit, Druidenformen, Himmelsreiten und Fahrzeuge
+    ersetzen Leiste 1 in **jedem** Set weiterhin automatisch.
   - Leiste 2–8: „Standard“ (eigene Seite) oder Seite 1–15.
 
 Nach jeder Änderung prüft das Addon auf Konflikte und warnt im Chat, z. B. wenn zwei sichtbare Leisten dieselbe Seite zeigen
@@ -97,6 +98,7 @@ Slash-Befehle (`/abs` oder `/actionbarswitcher`):
 /abs check           Konfiguration auf Konflikte prüfen
 /abs status          aktives Set und Seiten anzeigen
 /abs reset           alle Leisten auf Blizzard-Standard zurücksetzen
+/abs debug           Diagnose-Infos (bei Problemen bitte mitschicken)
 ```
 
 Im Kampf funktionieren **Tastenbelegungen und der Umschalt-Button**. Slash-Befehle und Einstellungen sind dort gesperrt
@@ -104,8 +106,13 @@ Im Kampf funktionieren **Tastenbelegungen und der Umschalt-Button**. Slash-Befeh
 
 ## Wie es technisch funktioniert
 
-- **Aktionsleiste 1** wird mit Blizzards eigenem sicheren Aktionstyp `actionbar` geblättert. Das ist derselbe Mechanismus
-  wie bei Shift + Mausrad.
+- **Aktionsleiste 1:** Blizzards eigene Seite bleibt immer 1. Dadurch kümmert sich Blizzard weiterhin um
+  Verstohlenheit, Druidenformen, Himmelsreiten, Fahrzeuge usw. (Blizzard zeigt diese Leisten nur auf Seite 1 an).
+  Die Seite des Sets wird als `actionpage` direkt auf die 12 Buttons gelegt, aber nur im Normalzustand.
+  Ein sicherer State-Driver erkennt Verstohlenheit (`[stealth]`, Schurke/Druide), Druidenformen (`[form]`),
+  Fahrzeuge, Override-/Possess-Leisten und Haustierkämpfe, auch im Kampf. Solange so ein Zustand aktiv ist (oder
+  Blizzards `MainActionBar` nicht auf Seite 1 steht), folgt Leiste 1 Blizzard und zeigt z. B. die Verstohlenheitsleiste.
+  Danach erscheint wieder die Seite des aktiven Sets. (`[bonusbar]` ist in WoW Forever dafür nicht zuverlässig.)
 - **Aktionsleisten 2–8:** Jeder Blizzard-Button berechnet seinen Aktionsplatz als
   `ID + (actionpage − 1) × 12` und liest `actionpage` zuerst vom Button selbst, dann von seiner Leiste.
   Das Addon setzt `actionpage` direkt auf die 12 Buttons. Die Buttons aktualisieren sich daraufhin selbst
@@ -118,9 +125,10 @@ Im Kampf funktionieren **Tastenbelegungen und der Umschalt-Button**. Slash-Befeh
 
 ## Bekannte Eigenheiten
 
-- **Druiden/Schurken:** Steht Leiste 1 auf einer anderen Seite als 1, zeigt Blizzard dort keine Formen-/Verstohlenheitsleiste.
-  Das ist Standardverhalten des Spiels, genau wie beim manuellen Blättern. Wer das nicht möchte, stellt Leiste 1 in
-  allen Sets auf „Seite 1“ oder „Nicht ändern“ und schaltet nur Leiste 2 (bis 8) um.
+- **Schurken/Druiden:** Verstohlenheit und Formen funktionieren in jedem Set. In Set 2 zeigt Leiste 1 also normalerweise
+  Seite 2, in Verstohlenheit aber deine Verstohlenheitsleiste. Danach kehrt sie zu Seite 2 zurück. Leiste 2 behält ihre
+  Set-Seite immer. Blätterst du Leiste 1 zusätzlich von Hand (Shift + Mausrad), gilt Blizzards normales Verhalten:
+  Auf einer anderen Seite als 1 gibt es keine Verstohlenheitsleiste.
 - Andere Addons, die Blizzards Leisten selbst blättern oder ersetzen (Bartender, Dominos, ElvUI …), sind nicht das
   Ziel dieses Addons und können sich mit ihm in die Quere kommen.
 

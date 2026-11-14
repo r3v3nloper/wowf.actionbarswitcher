@@ -64,6 +64,28 @@ UIParent = newFrame("Frame", "UIParent")
 
 -- Blizzard action bars: bar frame with "actionpage", 12 buttons each that
 -- compute their slot like SecureActionButtonMixin:CalculateAction.
+-- Action Bar 1: ActionButton1-12 follow MainActionBar's "actionpage", which
+-- Blizzard's ActionBarController sets (page, or the bonus bar index in stealth).
+local mainBar = newFrame("Frame", "MainActionBar", UIParent, "SecureFrameTemplate")
+mainBar._attrs.actionpage = 1
+local function newActionButton(name, parent, id)
+	local b = newFrame("CheckButton", name, parent, "SecureActionButtonTemplate")
+	b._id = id
+	b._attrs["useparent-actionpage"] = true
+	b._onAttr = function(self) self.action = self:CalculateAction() end
+	function b:CalculateAction()
+		local page = self._attrs.actionpage
+		if page == nil and self._attrs["useparent-actionpage"] then page = self._parent._attrs.actionpage end
+		return self._id + (page - 1) * 12
+	end
+	b.action = b:CalculateAction()
+	return b
+end
+for i = 1, 12 do newActionButton("ActionButton" .. i, mainBar, i) end
+mainBar._onAttr = function(self)
+	for i = 1, 12 do local b = _G["ActionButton" .. i]; b.action = b:CalculateAction() end
+end
+
 local BARDEF = { { "MultiBarBottomLeft", 6 }, { "MultiBarBottomRight", 5 }, { "MultiBarRight", 3 }, { "MultiBarLeft", 4 },
 	{ "MultiBar5", 13 }, { "MultiBar6", 14 }, { "MultiBar7", 15 } }
 for _, d in ipairs(BARDEF) do
@@ -71,16 +93,7 @@ for _, d in ipairs(BARDEF) do
 	bar._attrs.actionpage = d[2]
 	bar._shown = (d[1] == "MultiBarBottomLeft") -- user only uses bars 1 + 2
 	for i = 1, 12 do
-		local b = newFrame("CheckButton", d[1] .. "Button" .. i, bar, "SecureActionButtonTemplate")
-		b._id = i
-		b._attrs["useparent-actionpage"] = true
-		b._onAttr = function(self) self.action = self:CalculateAction() end
-		function b:CalculateAction()
-			local page = self._attrs.actionpage
-			if page == nil and self._attrs["useparent-actionpage"] then page = self._parent._attrs.actionpage end
-			return self._id + (page - 1) * 12
-		end
-		b.action = b:CalculateAction()
+		newActionButton(d[1] .. "Button" .. i, bar, i)
 	end
 end
 
@@ -123,8 +136,40 @@ function SecureHandlerExecute(frame, body)
 	_G.__runSnippet(frame, body, "self", handle(frame), handle(frame))
 end
 
+-- State drivers: the test drives the state by hand via DriveState().
+local stateDrivers = {}
+function RegisterStateDriver(frame, state, condition)
+	assert(not inCombat)
+	stateDrivers[state] = { frame = frame, condition = condition }
+	frame:SetAttribute("state-" .. state, "normal") -- initial evaluation
+end
+local function hookStateHandler(frame)
+	frame._onAttr = function(self, k, v)
+		local id = k:match("^state%-(.+)")
+		local body = id and self._attrs["_onstate-" .. id]
+		if body then _G.__runSnippet(self, body, "self,stateid,newstate", handle(self), handle(self), id, v) end
+	end
+end
+local origCreateFrame = CreateFrame
+function CreateFrame(kind, name, parent, template)
+	local f = origCreateFrame(kind, name, parent, template)
+	if template and template:find("SecureHandlerStateTemplate") then hookStateHandler(f) end
+	return f
+end
+
 function SecureHandlerWrapScript(frame, script, header, pre, post)
 	assert(not inCombat)
+	if script == "OnAttributeChanged" and _G.__attrWrapWorks then
+		local orig = frame._onAttr
+		frame._onAttr = function(self, name, value)
+			if not name:match("^_") then
+				_G.__runSnippet(header, pre, "self,name,value", handle(header), handle(self), name, value)
+			end
+			if orig then orig(self, name, value) end
+		end
+		return
+	end
+	if script == "OnAttributeChanged" then return end -- like in WoW Forever: never fires
 	frame._wrap = { header = header, pre = pre, post = post }
 end
 
@@ -141,7 +186,7 @@ local function Click(frame, button, down)
 	if down == (frame:GetAttribute("useOnKeyDown") and true or false) then
 		local t = frame:GetAttribute("type")
 		if t == "actionbar" then
-			actionBarPage = tonumber(frame:GetAttribute("action"))
+			error("bar 1 must no longer be paged via Blizzard's page")
 		end
 	end
 	if w.post and message ~= nil then
@@ -175,9 +220,16 @@ function CreateSettingsButtonInitializer(name, text, fn) _G.__settingsButton = f
 -- Misc API ------------------------------------------------------------------
 C_ActionBar = {
 	GetActionBarPage = function() return actionBarPage end,
-	SetActionBarPage = function(p) actionBarPage = p end,
+	SetActionBarPage = function(p)
+		actionBarPage = p
+		local prev = _G.__secureExec; _G.__secureExec = true -- Blizzard's controller is secure
+		mainBar:SetAttribute("actionpage", p)
+		_G.__secureExec = prev
+	end,
 }
 function InCombatLockdown() return inCombat end
+function UnitClass() return "Schurke", "ROGUE" end
+function SecureCmdOptionParse(s) return "normal" end
 function GetLocale() return LOCALE end
 function IsShiftKeyDown() return _G.__shift end
 DEFAULT_CHAT_FRAME = { AddMessage = function(_, m) chat[#chat + 1] = m end }
@@ -238,6 +290,17 @@ local function check(cond, msg)
 	if cond then print("  ok   " .. msg) else failures = failures + 1; print("  FAIL " .. msg) end
 end
 local function bar2Slot1() return MultiBarBottomLeftButton1.action end
+local function bar1Page() return (ActionButton1.action - 1) / 12 + 1 end
+-- Emulates entering/leaving stealth: Blizzard switches MainActionBar to the
+-- bonus bar (only while its page is 1) and the state driver fires.
+local function Stealth(on)
+	_G.__secureExec = true
+	if on and actionBarPage == 1 then mainBar:SetAttribute("actionpage", 7)
+	elseif not on then mainBar:SetAttribute("actionpage", actionBarPage) end
+	local d = stateDrivers.absbar1
+	d.frame:SetAttribute("state-absbar1", on and "special" or "normal")
+	_G.__secureExec = false
+end
 
 print("== load / init")
 fire("ADDON_LOADED", "ActionBarSwitcher")
@@ -246,7 +309,7 @@ fire("PLAYER_ENTERING_WORLD", true, false)
 local btn = ActionBarSwitcherButton
 check(btn ~= nil, "switch button created")
 check(ActionBarSwitcherHeader:GetAttribute("abs-count") == 2, "set count pushed")
-check(actionBarPage == 1, "bar1 on page 1 (set 1)")
+check(bar1Page() == 1 and actionBarPage == 1, "bar1 on page 1 (set 1)")
 check(bar2Slot1() == 61, "bar2 shows default page 6 (slot 61)")
 check(btn.Text._text == "Set 1", "button shows set name")
 check(#errors == 0, "no errors while creating options (" .. tostring(errors[1]) .. ")")
@@ -254,7 +317,7 @@ check(settingsLog.categories == 5, "1 category + 4 set subcategories")
 
 print("== keybind 'next' out of combat")
 check(Click(btn, "next") == "ok", "click accepted")
-check(actionBarPage == 2, "bar1 -> page 2")
+check(bar1Page() == 2 and actionBarPage == 1, "bar1 -> page 2 (Blizzard page stays 1)")
 check(bar2Slot1() == 145, "bar2 -> page 13 (slot 145)")
 check(MultiBarBottomLeftButton12.action == 156, "bar2 button 12 -> slot 156")
 check(ns.DB.current == 2 and btn.Text._text == "Set 2", "DB/current + label updated via CallMethod")
@@ -262,19 +325,75 @@ check(ns.DB.current == 2 and btn.Text._text == "Set 2", "DB/current + label upda
 print("== keybind 'next' IN COMBAT (wraps around)")
 inCombat = true
 check(Click(btn, "next") == "ok", "click accepted in combat")
-check(actionBarPage == 1, "bar1 -> page 1")
+check(bar1Page() == 1, "bar1 -> page 1")
 check(bar2Slot1() == 61, "bar2 back to default page 6")
 check(MultiBarBottomLeftButton1:GetAttribute("actionpage") == nil, "attribute cleared (falls back to bar)")
 
 print("== direct set bindings / prev / mouse")
-check(Click(btn, "set2") == "ok" and actionBarPage == 2 and bar2Slot1() == 145, "set2 binding")
-check(Click(btn, "set2") == "ok" and actionBarPage == 2, "set2 again is idempotent")
+check(Click(btn, "set2") == "ok" and bar1Page() == 2 and bar2Slot1() == 145, "set2 binding")
+check(Click(btn, "set2") == "ok" and bar1Page() == 2, "set2 again is idempotent")
 check(Click(btn, "set3") == "cancelled", "set3 rejected while count = 2")
 check(Click(btn, "prev") == "ok" and ns.DB.current == 1, "prev binding")
 check(Click(btn, "RightButton") == "ok" and ns.DB.current == 2, "right click = previous (wraps)")
 _G.__shift = true
 check(Click(btn, "LeftButton") == "cancelled" and ns.DB.current == 2, "shift+click does not switch (drag)")
 _G.__shift = false
+
+print("== rogue stealth")
+check(stateDrivers.absbar1 and stateDrivers.absbar1.condition:find("%[stealth%] special"), "rogue state driver uses [stealth]")
+Click(btn, "set2")
+check(bar1Page() == 2, "set 2 active: bar1 page 2")
+Stealth(true)
+check(bar1Page() == 7, "stealth in set 2 -> Blizzard stealth bar (page 7)")
+check(bar2Slot1() == 145, "bar2 keeps set 2 page in stealth")
+Stealth(false)
+check(bar1Page() == 2, "leaving stealth -> back to set 2 page")
+Click(btn, "set1")
+Stealth(true)
+check(bar1Page() == 7, "stealth in set 1 -> stealth bar")
+Click(btn, "set2")
+check(bar1Page() == 7 and ns.DB.current == 2, "switching set while stealthed keeps stealth bar")
+Stealth(false)
+check(bar1Page() == 2, "after stealth: set 2 page")
+-- Real order in game: [stealth] fires, then Blizzard switches its main bar
+Click(btn, "set2")
+check(bar1Page() == 2, "in set 2, not stealthed")
+_G.__secureExec = true
+stateDrivers.absbar1.frame:SetAttribute("state-absbar1", "special")
+_G.__secureExec = false
+check(bar1Page() == 1, "stealth state: override removed, follows Blizzard")
+_G.__secureExec = true
+mainBar:SetAttribute("actionpage", 7)
+_G.__secureExec = false
+check(bar1Page() == 7, "Blizzard then shows the stealth bar (set 2 already active)")
+-- leaving stealth in the other order: Blizzard first, then the driver
+_G.__secureExec = true
+mainBar:SetAttribute("actionpage", 1)
+_G.__secureExec = false
+check(bar1Page() == 1, "Blizzard back on page 1 while state is still special")
+_G.__secureExec = true
+stateDrivers.absbar1.frame:SetAttribute("state-absbar1", "normal")
+_G.__secureExec = false
+check(bar1Page() == 2, "back to set 2 page")
+inCombat = true
+Stealth(true)
+check(bar1Page() == 7, "stealth in combat")
+Stealth(false)
+check(bar1Page() == 2, "unstealth in combat")
+-- vehicles stay Blizzard's business
+_G.__secureExec = true
+mainBar:SetAttribute("actionpage", 12)
+stateDrivers.absbar1.frame:SetAttribute("state-absbar1", "special")
+_G.__secureExec = false
+check(bar1Page() == 12, "vehicle: buttons follow Blizzard's main bar")
+_G.__secureExec = true
+mainBar:SetAttribute("actionpage", 1)
+stateDrivers.absbar1.frame:SetAttribute("state-absbar1", "normal")
+_G.__secureExec = false
+check(bar1Page() == 2, "after vehicle: set 2 page")
+SlashCmdList.ACTIONBARSWITCHER("debug")
+check(chat[#chat - 3]:find("debug v"), "/abs debug prints info")
+Click(btn, "set2")
 
 print("== combat restrictions for insecure paths")
 ns.SwitchTo(1)
@@ -293,7 +412,7 @@ settingsLog.settings["ABS_Set3_Bar2"].set(14)
 settingsLog.settings["ABS_Set3_Bar3"].set(15)
 check(ActionBarSwitcherHeader:GetAttribute("abs-managed-3") == true, "bar3 now managed")
 SlashCmdList.ACTIONBARSWITCHER("3")
-check(ns.DB.current == 3 and actionBarPage == 1 and bar2Slot1() == 157 and MultiBarBottomRightButton1.action == 169, "/abs 3 applies set 3")
+check(ns.DB.current == 3 and bar1Page() == 1 and bar2Slot1() == 157 and MultiBarBottomRightButton1.action == 169, "/abs 3 applies set 3")
 inCombat = true
 Click(btn, "next")
 check(ns.DB.current == 1 and MultiBarBottomRightButton1.action == 49, "set1 resets bar3 to default page 5")
@@ -322,7 +441,7 @@ check(ns.CheckConflicts(true) == 0, "default style config has no conflicts")
 
 print("== reset")
 SlashCmdList.ACTIONBARSWITCHER("reset")
-check(actionBarPage == 1 and bar2Slot1() == 61, "everything back to Blizzard defaults")
+check(bar1Page() == 1 and actionBarPage == 1 and bar2Slot1() == 61, "everything back to Blizzard defaults")
 
 print("== reload: saved state restored")
 local saved = ActionBarSwitcherCharDB
